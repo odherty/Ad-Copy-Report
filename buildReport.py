@@ -1,5 +1,11 @@
 #Script to generate an ad copy report by Patrick O'Doherty (1-3-19)
-import csv, xlsxwriter
+import os, csv, xlsxwriter, datetime
+from functions import *
+from googleads import adwords
+from datetime import date
+
+#pylint: disable=no-value-for-parameter
+#pylint: disable=no-member
 
 #adList is a dictonary of lists
 #a dictonary is an array that is indexed with unique indices, in this implementation the
@@ -9,47 +15,45 @@ import csv, xlsxwriter
 adList = {}
 keywordList = {}
 
-print('Put your ad copy CSV and keywords CSV in a files folder')
-adCopy = raw_input("Your ad copy CSV file name (without .csv): ")
-adKeywords = raw_input("Your ad copy CSV file name (without .csv): ")
+# Initalize AdWords client
+yaml_file_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'googleads.yaml')
+
+adwords_client = adwords.AdWordsClient.LoadFromStorage(yaml_file_path)
+adwords_client.SetClientCustomerId('779-840-3017')
+
+adCopyQuery = (adwords.ReportQueryBuilder()
+                  .Select('AccountDescriptiveName', 'CampaignName', 'AdGroupName', 'HeadlinePart1',
+                          'HeadlinePart2', 'ExpandedTextAdHeadlinePart3', 'Description', 'ExpandedTextAdDescription2',
+                          'CreativeFinalUrls')
+                  .From('AD_PERFORMANCE_REPORT')
+                  .Where('Status').In('ENABLED', 'PAUSED')
+                  .During('LAST_MONTH')
+                  .Build())
+
+adKeywordQuery = (adwords.ReportQueryBuilder()
+                    .Select('AccountDescriptiveName', 'CampaignName', 'AdGroupName', 'Criteria')
+                    .From('KEYWORDS_PERFORMANCE_REPORT')
+                    .Where('Status').In('ENABLED', 'PAUSED')
+                    .During('LAST_MONTH')
+                    .Build())
+
+accountNameQuery = (adwords.ReportQueryBuilder()
+                    .Select('AccountDescriptiveName', 'CampaignName', 'AdGroupName', 'Criteria')
+                    .From('KEYWORDS_PERFORMANCE_REPORT')
+                    .Where('Status').In('ENABLED', 'PAUSED')
+                    .During('LAST_MONTH')
+                    .Build())
+
+communityName = input("Community: ")
+
+reportQuery(adwords_client, adCopyQuery, 'files/adCopy.csv')
+reportQuery(adwords_client, adKeywordQuery, 'files/adKeywords.csv')
 
 ###Read in data
 #
 #Initalize the dictonary with an empty list
-with open('files/' + adCopy + '.csv') as file:
-    reader = csv.reader(file, delimiter=',')
-    for row in reader:
-        try:
-            adList[row[2]] = []
-        except IndexError:
-            adList[''] = []
-
-#Add data from CSV to list previously initialized
-with open('files/' + adCopy + '.csv') as file:
-    reader = csv.reader(file, delimiter=',')
-    for row in reader:
-        try:
-            adList[row[2]].append(row)
-        except IndexError:
-            adList[''].append('')
-
-#Initalize the dictonary with an empty list
-with open('files/' + adKeywords + '.csv') as file:
-    reader = csv.reader(file, delimiter=',')
-    for row in reader:
-        try:
-            keywordList[row[2]] = []
-        except IndexError:
-            keywordList[''] = []
-
-#Add data from CSV to list previously initialized
-with open('files/' + adKeywords + '.csv') as file:
-    reader = csv.reader(file, delimiter=',')
-    for row in reader:
-        try:
-            keywordList[row[2]].append(row)
-        except IndexError:
-            keywordList[''].append('')
+initDictonary('files/adCopy.csv', adList)
+initDictonary('files/adKeywords.csv', keywordList)
 
 #Remove empty lists from dictonaries
 adList.pop('')
@@ -61,6 +65,7 @@ keywordList.pop('Ad group')
 #
 #Build output
 workbook = xlsxwriter.Workbook("files/output.xlsx")
+worksheetCover = workbook.add_worksheet("Cover")
 worksheet = workbook.add_worksheet("Ad Copy & Keywords")
 
 #Set font type of workbook
@@ -71,6 +76,16 @@ workbook.formats[0].set_font_size(9)
 title_format = workbook.add_format({'bold' : True, 'font_name' : 'Avenir Book'})
 adgroup_title_format = workbook.add_format({'bold' : True, 'bg_color' : '#088BA3', 'font_color' : 'white', 'font_name' : 'Avenir Book' })
 adgroup_headings = workbook.add_format({'bold' : True, 'bg_color' : '#D9D9D9', 'font_size' : 8, 'font_name' : 'Avenir Book', 'align' : 'center', 'valign' : 'vcenter'})
+cover_title_format = workbook.add_format({'bold' : True, 'font_name' : 'Avenir Book','align': 'center', 'valign': 'vcenter'})
+
+#Cover Page
+today = date.today().strftime('%m/%d/%Y')
+
+worksheetCover.insert_image('A1', 'src/orchardLogo.png',{'x_scale': .25, 'y_scale': .25,'x_offset': 225})
+worksheetCover.merge_range('B14:J15', 'Paid Search Ad Copy & Keywords', cover_title_format)
+worksheetCover.merge_range('B14:J15', communityName, cover_title_format)
+worksheetCover.merge_range('B16:J17', 'Paid Search Keyword Report: ' + str(today), cover_title_format)
+
 
 #Make title
 worksheet.insert_image('A1', 'src/orchardLogo.png', {'x_scale': 0.08, 'y_scale': 0.08})
@@ -120,13 +135,13 @@ for adGroup in adList:
             worksheet.write('E' + str(currentPos + 3), len(adList[adGroup][ad][5]))
             
             #write descriptions
-            worksheet.merge_range('C' + str(currentPos + 4) + ':E' + str(currentPos + 4), adList[adGroup][ad][6].decode('utf-8'))
-            worksheet.merge_range('C' + str(currentPos + 5) + ':E' + str(currentPos + 5), adList[adGroup][ad][7].decode('utf-8'))
+            worksheet.merge_range('C' + str(currentPos + 4) + ':E' + str(currentPos + 4), adList[adGroup][ad][6])
+            worksheet.merge_range('C' + str(currentPos + 5) + ':E' + str(currentPos + 5), adList[adGroup][ad][7])
             #write sizes of descriptions
             worksheet.write('F' + str(currentPos + 4), len(adList[adGroup][ad][6]))
             worksheet.write('F' + str(currentPos + 5), len(adList[adGroup][ad][7]))
             #write final url
-            worksheet.merge_range('C' + str(currentPos + 6) + ':E' + str(currentPos + 6), adList[adGroup][ad][8].decode('utf-8'))
+            worksheet.merge_range('C' + str(currentPos + 6) + ':E' + str(currentPos + 6), adList[adGroup][ad][8])
             worksheet.write('F' + str(currentPos + 1), '', adgroup_headings)
             printPos = 1
         else:
@@ -141,13 +156,13 @@ for adGroup in adList:
             worksheet.write('I' + str(currentPos + 3), len(adList[adGroup][ad][5]))
             
             #write descriptions
-            worksheet.merge_range('G' + str(currentPos + 4) + ':I' + str(currentPos + 4), adList[adGroup][ad][6].decode('utf-8'))
-            worksheet.merge_range('G' + str(currentPos + 5) + ':I' + str(currentPos + 5), adList[adGroup][ad][7].decode('utf-8'))
+            worksheet.merge_range('G' + str(currentPos + 4) + ':I' + str(currentPos + 4), adList[adGroup][ad][6])
+            worksheet.merge_range('G' + str(currentPos + 5) + ':I' + str(currentPos + 5), adList[adGroup][ad][7])
             #write sizes of descriptions
             worksheet.write('J' + str(currentPos + 4), len(adList[adGroup][ad][6]))
             worksheet.write('J' + str(currentPos + 5), len(adList[adGroup][ad][7]))
             #write final url
-            worksheet.merge_range('G' + str(currentPos + 6) + ':I' + str(currentPos + 6), adList[adGroup][ad][8].decode('utf-8'))
+            worksheet.merge_range('G' + str(currentPos + 6) + ':I' + str(currentPos + 6), adList[adGroup][ad][8])
             worksheet.write('J' + str(currentPos + 1), '', adgroup_headings)
             printPos = 0
             currentPos += 7

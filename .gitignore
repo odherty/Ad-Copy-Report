@@ -1,1 +1,7 @@
 files/*
+env/*
+googleads.yaml
+sampleCode/*
+.vscode/*
+queries.py
+__pycache__/
