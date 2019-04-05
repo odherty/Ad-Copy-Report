@@ -5,3 +5,4 @@ sampleCode/*
 .vscode/*
 queries.py
 __pycache__/
+functions.pyc

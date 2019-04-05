@@ -26,6 +26,8 @@ adwords_client.SetClientCustomerId('904-054-7932')
 customers = getCustomerIDs(adwords_client)
 
 for customer in customers:
+    adList.clear()
+    keywordList.clear()
 
     adwords_client.SetClientCustomerId(customer)
 
@@ -198,6 +200,3 @@ for customer in customers:
 
     worksheet.merge_range('A' + str(currentPos) + ':J' + str(currentPos), '', adgroup_title_format)
     workbook.close()
-
-    adList.clear()
-    keywordList.clear()
