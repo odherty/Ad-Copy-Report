@@ -23,7 +23,7 @@ pylint==2.2.2
 PyQt5==5.12
 PyQt5-sip==4.19.14
 pytz==2018.9
-PyYAML==4.2b4
+PyYAML==5.4
 requests==2.21.0
 requests-oauthlib==1.2.0
 requests-toolbelt==0.9.1
